@@ -77,7 +77,7 @@ After:                                         v chunk malloc > top chunk
 ```
 
 - Sau khi ta tạo 1 unsorted bin, ta có thể leak libc, heap từ unsorted [link](https://github.com/nhtri2003gmail/CTFNote/tree/master/Heap-Exploitation)
-  ![https://github.com/nhtri2003gmail/CTFNote/tree/master/Heap-Exploitation](image.png)
+  ![https://github.com/nhtri2003gmail/CTFNote/tree/master/Heap-Exploitation](/bin/image.png)
 - Khi này nếu ta malloc thêm 1 chunk nữa sẽ báo lỗi (abort)
 - Khi call abort, nó sẽ xoá các file pointer bằng `_IO_flush_all_lockp -> _IO_list_all x> _IO_OVERFLOW (vtable)`
 - Nếu ta có thể thay đổi `_IO_list_all` thành system() or one_gadget
