@@ -1,5 +1,0 @@
-# information
-
-abc  
-abc
-abc
