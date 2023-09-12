@@ -147,3 +147,8 @@ unlink (off, p, bck, fwd);
 - Giả sử ta setup như sau
   ![Alt text](/bin/houseofEnherjar/image-2.png)
 - Khi ta free chunk 1, free sẽ thấy bit inuse tắt, khi này nó sẽ unlink và mer với fake chunk và free, khi ấy chunk trong bin là chunk fake (chunk fake merge với chunk 1) và khi này ta có overlap chunk
+
+---
+
+# House of botcake
+https://github.com/shellphish/how2heap/blob/master/glibc_2.32/house_of_botcake.c
