@@ -1,6 +1,7 @@
 # information
 
-đề bài : Files can always be changed in a secret way. Can you find the flag? `https://mercury.picoctf.net/static/7cf6a33f90deeeac5c73407a1bdc99b6/cat.jpg`
+đề bài : Files can always be changed in a secret way. Can you find the flag?
+
 Gợi ý : 1. Look at the details of the file 2. Make sure to submit the flag as picoCTF{XXXXX}
 
 - Cách 1 : đầu tiên tôi dùng exiftool để xem dữ liệu hình ảnh
