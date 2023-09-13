@@ -156,4 +156,4 @@ https://github.com/shellphish/how2heap/blob/master/glibc_2.32/house_of_botcake.c
 
 ## Khai thác
 
-- House of botcake khai thác 
+- House of botcake khai thác ở DBF bằng khai thác 
