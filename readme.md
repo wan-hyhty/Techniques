@@ -172,5 +172,5 @@ unlink (off, p, bck, fwd);
 ## Reference
 
 - https://github.com/shellphish/how2heap/blob/master/glibc_2.32/house_of_botcake.c
-- [house of botcake](./house_of_botcake/)
+- [catastrophe](./house_of_botcake/)
 - [mailman](https://github.com/wan-hyhty/CTFs_competition/tree/main/ImaginaryCTF2023/mailman)
