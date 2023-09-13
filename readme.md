@@ -162,6 +162,8 @@ unlink (off, p, bck, fwd);
 
 ## Example
 
+- ta sẽ free 9 8 và malloc 7 free 9
+
 ![Alt text](./house_of_botcake/image.png)
 
 - Khi này ta đã có dbf bằng cách malloc 2 chunk trong unsorted bin.
