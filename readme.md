@@ -153,3 +153,7 @@ unlink (off, p, bck, fwd);
 # House of botcake
 
 https://github.com/shellphish/how2heap/blob/master/glibc_2.32/house_of_botcake.c
+
+## Khai thác
+
+- House of botcake khai thác 
