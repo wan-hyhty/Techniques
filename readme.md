@@ -152,8 +152,23 @@ unlink (off, p, bck, fwd);
 
 # House of botcake
 
-https://github.com/shellphish/how2heap/blob/master/glibc_2.32/house_of_botcake.c
+## Giới thiệu
+
+- House of botcake khai thác tính năng `Top Chunk Checking` do vậy nhưng bằng hướng khái
 
 ## Khai thác
 
-- House of botcake khai thác ở DBF bằng khai thác 
+- Đầu tiên ta sẽ fill tcache bin > 0x80 , sau đó ta free vào `unsorted bin` (để leak libc luôn nếu được), malloc 1 chunk để khi dbf thì chunk đó vào tcache. Khi này ta có thể đã overlap chunk
+
+## Example
+
+![Alt text](./house_of_botcake/image.png)
+
+- Khi này ta đã có dbf bằng cách malloc 2 chunk trong unsorted bin.
+- Sau đó, ta có thể FSOP để leak stack -> ROPgadget
+
+## Reference
+
+- https://github.com/shellphish/how2heap/blob/master/glibc_2.32/house_of_botcake.c
+- [house of botcake](./house_of_botcake/)
+- [mailman](https://github.com/wan-hyhty/CTFs_competition/tree/main/ImaginaryCTF2023/mailman)
