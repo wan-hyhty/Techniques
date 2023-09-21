@@ -55,7 +55,7 @@ if (fail)
 - Khi này ta free chunk 1, security check ở trên sẽ kiểm tra next chunk (chunk 2)
 - Chỉ cần thoả mãn size chunk 2 > 16 và < 128kb (16 < size < 128kb)
 
-## House of tcache
+## House of spirit (tcache)
 - Có vẻ khi tcache không kiểm tra next chunk, chỉ cần ta free địa chỉ hợp lệ.
 
 ## Ex
